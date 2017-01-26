@@ -1,0 +1,2 @@
+-e git+https://github.com/Nordgedanken/python-slackclient.git@f3ae3c94888bca514cd17277f4b2bf32fe795e92#egg=master
+python-telegram-bot
