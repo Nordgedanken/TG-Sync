@@ -65,21 +65,21 @@ class Core:
                         print(rtm_flow)
                         type = rtm_flow[0]['type']
                         if 'text' in rtm_flow[0]:
-                            text = rtm_flow[0]['text']
-                            user_profile = self.sc.api_call("users.info", user=rtm_flow[0]['user'])
-                            channel_info = self.sc.api_call("channels.info", channel=rtm_flow[0]['channel'])
-                            channel_name = channel_info['channel']['name']
-                            user_name = user_profile['user']['profile']['real_name']
-                        if type == "message":
-                                if "subtype" in rtm_flow[0]:
-                                    subtype = rtm_flow[0]['subtype']
-                                    if subtype == "message_deleted":
-                                        logger.debug("something deleted")
-                                else:
-                                    logger.debug(rtm_flow)
-                                    self.tg_bot.sendMessage(chat_id=sl2tg['#{}'.format(channel_name)], text='{user_name} ({channel}): {text}'.format(user_name=user_name, channel=channel_name, text=text))
-                        else:
-                            logger.debug(rtm_flow)
+                            if type == "message":
+                                    if "subtype" in rtm_flow[0]:
+                                        subtype = rtm_flow[0]['subtype']
+                                        if "message_deleted" in subtype:
+                                            logger.debug("something got deleted at slack")
+                                    else:
+                                        text = rtm_flow[0]['text']
+                                        user_profile = self.sc.api_call("users.info", user=rtm_flow[0]['user'])
+                                        channel_info = self.sc.api_call("channels.info", channel=rtm_flow[0]['channel'])
+                                        channel_name = channel_info['channel']['name']
+                                        user_name = user_profile['user']['profile']['real_name']
+                                        response = self.tg_bot.sendMessage(chat_id=sl2tg['#{}'.format(channel_name)], text='{user_name} ({channel}): {text}'.format(user_name=user_name, channel=channel_name, text=text))
+                                        print('TG RESPONSE: {}'.format(response))
+                            else:
+                                logger.debug(rtm_flow)
                     now = int(time.time())
                     if now > last_ping + 30:
                         self.sc.server.ping()
@@ -93,13 +93,24 @@ class Core:
     def Hsyc(self, bot, update):
         try:
             tg2sl = self.memory.get_by_path(['tg_sl-sync'])['tg2sl']
-            sl2tg = self.memory.get_by_path(['tg_sl-sync'])['sl2tg']
         except Exception as e:
             traceback.print_exc()
             update.message.reply_text('Failed to get memory. Please contact Admin!')
-        if update.message.chat_id in tg2sl:
-            update.message.reply_text('This channel is already synced!')
-        logger.debug(update.message.text)
+        try:
+            if str(update.message.chat_id) in tg2sl:
+                print("USER: {}".format(bot.getFile(file_id=update.message.from_user.get_profile_photos(limit=1)['photos'][0][0]['file_id'])['file_path']))
+                response = self.sc.api_call(
+                  "chat.postMessage",
+                  channel=tg2sl[str(update.message.chat_id)],
+                  text=update.message.text,
+                  username="{firstname} {lastname}".format(firstname=update.message.from_user['first_name'], lastname=update.message.from_user['last_name']),
+                  icon_url=str(bot.getFile(file_id=update.message.from_user.get_profile_photos(limit=1)['photos'][0][0]['file_id'])['file_path'])
+                )
+                print("response: {}".format(response))
+        except Exception as e:
+            traceback.print_exc()
+            update.message.reply_text('Failed to sync to chat. Please contact Admin!')
+        print(update.message.text)
 
     def Cslacksync(self, bot, update):
         params = update.message.text.split()
