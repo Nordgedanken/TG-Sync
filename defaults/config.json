@@ -1,0 +1,12 @@
+{
+  "admins": [ ],
+  "commands_user": [ ],
+  "commands_enabled": true,
+  "link_to_guide": "https://github.com/hangoutsbot/hangoutsbot/wiki/User-Guide",
+  "silentmode": false,
+  "plugins": [
+
+  ],
+  "TELEGRAM_API_KEY": "SET TELEGRAM API KEY HERE",
+  "SLACK_API_KEY": "SET SLACK API KEY HERE"
+}

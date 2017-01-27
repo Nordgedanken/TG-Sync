@@ -1,94 +1,28 @@
-#Import Modules that are needed
+#Import external Modules that are needed
 import telegram.ext
 from telegram.ext import Updater, Filters
 from slackclient import SlackClient
-import json
-import os.path
+import json, os.path, sys, traceback, functools, time, shutil
 from multiprocessing import Pool
-import sys, traceback, functools, time
 
-class Config:
-    filename = 'config/config.json'
-    def generate(self):
-        data = {"TELEGRAM_API_KEY": "INSERT YOUR TELEGRAM API KEY HERE", "SLACK_API_KEY": "INSERT YOUR SLACK API KEY HERE", "plugins": []}
-        with open(self.filename, 'w') as config_file:
-            outfile.write(json.dumps(data, indent=4))
-
-    def get_by_path(self, keys_list):
-        with open(self.filename) as config_file:
-            data = json.load(config_file)
-        return functools.reduce(lambda d, k: d[int(k) if isinstance(d, list) else k], keys_list, data)
-
-    def set_by_path(self, keys_list, value):
-        with open(self.filename, "r+") as config_file:
-            config_data = json.load(config_file)
-            config_data[keys_list[-1]] = value
-
-            config_file.seek(0)  # rewind
-            config_file.write(json.dumps(config_data))
-            config_file.truncate()
-
-    def remove(self, json_object):
-        with open(self.filename) as config_file:
-            config_data = json.load(config_file)
-            for item in config_data:
-                item.pop(config_data, None)
-                with open(self.filename, mode='w') as f:
-                    f.write(json.dumps(item, indent=4))
-
-    def exists(self, keys_list):
-        _exists = True
-
-        try:
-            if self.get_by_path(keys_list) is None:
-                _exists = False
-        except (KeyError, TypeError):
-            _exists = False
-
-        return _exists
-
-class Memory:
-    filename = 'config/memory.json'
-    def generate(self):
-        data = {}
-        with open(self.filename, 'w') as memory_file:
-            memory_file.write(json.dumps(data, indent=4))
-
-    def get_by_path(self, keys_list):
-        with open(self.filename) as memory_file:
-            data = json.load(memory_file)
-        return functools.reduce(lambda d, k: d[int(k) if isinstance(d, list) else k], keys_list, data)
-
-    def set_by_path(self, keys_list, value):
-        with open(self.filename, "r+") as memory_file:
-            memory_data = json.load(memory_file)
-            memory_data[keys_list[:-1]][keys_list[-1]] = value
-            memory_file.seek(0)  # rewind
-            memory_file.write(json.dumps(memory_data, indent=4))
-            memory_file.truncate()
-
-    def remove(self, json_object):
-        with open(self.filename) as memory_file:
-            memory_data = json.load(memory_file)
-            for item in memory_data:
-                item.pop(json_object, None)
-                with open(self.filename, mode='w') as f:
-                    f.write(json.dumps(item, indent=4))
-
-    def exists(self, keys_list):
-        _exists = True
-
-        try:
-            if self.get_by_path(keys_list) is None:
-                _exists = False
-        except (KeyError, TypeError):
-            _exists = False
-
-        return _exists
+#Import internal Modules that are needed
+import config
 
 class Core:
+    def __init__(self):
+        try:
+            self.config = config.Config("config/config.json")
+        except ValueError:
+            logging.exception("failed to load config, malformed json")
+            sys.exit()
+
+        try:
+            self.memory = config.Memory("config/memory.json")
+        except ValueError:
+            logging.exception("failed to load config, malformed json")
+            sys.exit()
     def slack_init(self):
-        api_key = Config().get_by_path(['SLACK_API_KEY'])
+        api_key = self.config.get_by_path(['SLACK_API_KEY'])
         sc = SlackClient(api_key)
 
         print("slack starting...")
@@ -121,41 +55,48 @@ class Core:
 
         def slacksync(bot, update):
             params = update.message.text.split()
+            print(params[1])
 
-            if Memory().exists(['tg_sl-sync']['tg2sl']):
-                if Memory().exists(['tg_sl-sync']['sl2tg']):
-                    tg2sl = Memory().get_by_path(['tg_sl-sync']['tg2sl'])
-                    sl2tg = Memory().get_by_path(['tg_sl-sync']['sl2tg'])
+            try:
+                tg2sl = self.memory.get_by_path(['tg_sl-sync'])['tg2sl']
+                sl2tg = self.memory.get_by_path(['tg_sl-sync'])['sl2tg']
+            except Exception as e:
+                #print(e)
+                exc_type, exc_obj, exc_tb = sys.exc_info()
+                fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                print(exc_type, fname, exc_tb.tb_lineno)
+                traceback.print_exc()
+                update.message.reply_text('Failed to get memory. Please contact Admin!')
 
-                    if update.message.chat_id in tg2sl:
-                        print("tretre")
-                    else:
-                        try:
-                            tg2sl[str(update.message.chat_id)] = params[1]
-                            sl2tg[str(params[1])] = str(update.message.chat_id)
-                            new_memory = {'tg2sl': tg2sl, 'sl2tg': sl2tg}
-                            Memory().set_by_path(['tg_sl-sync'], new_memory)
-                            update.message.reply_text('Saved sync!')
-                        except Exception as e:
-                            #print(e)
-                            exc_type, exc_obj, exc_tb = sys.exc_info()
-                            fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
-                            print(exc_type, fname, exc_tb.tb_lineno)
-                            traceback.print_exc()
-                            update.message.reply_text('Failed to save sync!')
-                        print("sync saved")
+            if tg2sl:
+                print("works")
+
+            if update.message.chat_id in tg2sl:
+                print("tretre")
+            else:
+                print("got sync request...")
+                try:
+                    tg2sl[str(update.message.chat_id)] = params[1]
+                    sl2tg[str(params[1])] = str(update.message.chat_id)
+                    new_memory = {'tg2sl': tg2sl, 'sl2tg': sl2tg}
+                    self.memory.set_by_path(['tg_sl-sync'], new_memory)
+                    self.memory.save()
+                    update.message.reply_text('Saved sync!')
+                except Exception as e:
+                    #print(e)
+                    exc_type, exc_obj, exc_tb = sys.exc_info()
+                    fname = os.path.split(exc_tb.tb_frame.f_code.co_filename)[1]
+                    print(exc_type, fname, exc_tb.tb_lineno)
+                    traceback.print_exc()
+                    update.message.reply_text('Failed to save sync!')
+                print("sync saved")
 
         print("Telegram starting...")
-        api_key = Config().get_by_path(['TELEGRAM_API_KEY'])
-        if not Memory().exists(['tg_sl-sync']):
+        api_key = self.config.get_by_path(['TELEGRAM_API_KEY'])
+        if not self.memory.exists(['tg_sl-sync']):
             print('tg_sl-sync missing...')
-            Memory().set_by_path(['tg_sl-sync'], {})
-        # if not Memory().exists(['tg_sl-sync']['sl2tg']):
-        #     print("sl2tg missing...")
-        #     Memory().set_by_path(['tg_sl-sync']['sl2tg'], {})
-        # if not Memory().exists(['tg_sl-sync']['tg2sl']):
-        #     print("tg2sl missing...")
-        #     Memory().set_by_path(['tg_sl-sync']['tg2sl'], {})
+            self.memory.set_by_path(['tg_sl-sync'], {'sl2tg':{}, 'tg2sl': {}})
+            self.memory.save()
         updater = Updater(api_key)
         updater.dispatcher.add_handler(telegram.ext.MessageHandler(Filters.text, sync_handler))
         updater.dispatcher.add_handler(telegram.ext.CommandHandler('slacksync', slacksync))
@@ -173,28 +114,26 @@ class Core:
         slack = pool.apply_async(self.slack_init(), [])    # evaluate "solve2(B)" asynchronously
 
 if __name__ == "__main__":
-
-    check_pass = 0
-
     if os.path.isdir("config"):
-        if os.path.isfile("config/config.json"):
-            check_pass = check_pass+1
-        else:
-            check_pass = check_pass-1
-            Config().generate()
-
-        if os.path.isfile("config/memory.json"):
-            check_pass = check_pass+1
-        else:
-            check_pass = check_pass-1
-            Memory().generate()
-
-        if check_pass == 2:
-            Core().init()
-        else:
-            print("Configs are regenrated. Please check the API Keys and restart the Bot.")
+        if not os.path.isfile('config/config.json'):
+            try:
+                shutil.copy('defaults/config.json', "config/config.json")
+                sys.exit('Please set Api Keys')
+            except (OSError, IOError) as e:
+                sys.exit('Failed to copy default config file: {}'.format(e))
+        if not os.path.isfile('config/memory.json'):
+            try:
+                shutil.copy('defaults/memory.json', "config/memory.json")
+            except (OSError, IOError) as e:
+                sys.exit('Failed to copy default memory file: {}'.format(e))
     else:
         os.mkdir("config")
-        Config().generate()
-        Memory().generate()
-        print("First run... Configs are genrated. Please add the API Keys and restart the Bot.")
+        if not os.path.isfile('config/config.json'):
+            try:
+                shutil.copy('defaults/config.json', "config/config.json")
+                sys.exit('Please set Api Keys')
+            except (OSError, IOError) as e:
+                sys.exit('Failed to copy default config file: {}'.format(e))
+
+    core = Core()
+    core.init()
