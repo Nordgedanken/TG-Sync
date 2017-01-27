@@ -25,18 +25,19 @@ class Core:
             sys.exit()
 
         try:
-            api_key = self.config.get_by_path(['SLACK_API_KEY'])
-            self.sc = SlackClient(api_key)
+            self.sl_api_key = self.config.get_by_path(['SLACK_API_KEY'])
+            self.sc = SlackClient(self.sl_api_key)
         except Exception as e:
             traceback.print_exc()
 
         try:
-            api_key = self.config.get_by_path(['TELEGRAM_API_KEY'])
+            self.tg_api_key = self.config.get_by_path(['TELEGRAM_API_KEY'])
             if not self.memory.exists(['tg_sl-sync']):
                 logger.warn('tg_sl-sync missing...')
                 self.memory.set_by_path(['tg_sl-sync'], {'sl2tg':{}, 'tg2sl': {}})
                 self.memory.save()
-            self.updater = Updater(api_key)
+            self.tg_bot = telegram.Bot(self.tg_api_key)
+            self.updater = Updater(self.tg_api_key)
         except Exception as e:
             traceback.print_exc()
 
@@ -54,20 +55,29 @@ class Core:
 
     def slack_init(self):
         try:
+            sl2tg = self.memory.get_by_path(['tg_sl-sync'])['sl2tg']
             logger.info("Slack Bot starting...")
             if self.sc.rtm_connect():
                 last_ping = int(time.time())
                 while True:
                     rtm_flow = self.sc.rtm_read()
                     if rtm_flow:
+                        print(rtm_flow)
                         type = rtm_flow[0]['type']
+                        if 'text' in rtm_flow[0]:
+                            text = rtm_flow[0]['text']
+                            user_profile = self.sc.api_call("users.info", user=rtm_flow[0]['user'])
+                            channel_info = self.sc.api_call("channels.info", channel=rtm_flow[0]['channel'])
+                            channel_name = channel_info['channel']['name']
+                            user_name = user_profile['user']['profile']['real_name']
                         if type == "message":
-                            if "subtype" in rtm_flow[0]:
-                                subtype = rtm_flow[0]['subtype']
-                                if subtype == "message_deleted":
-                                    logger.debug("something deleted")
-                            else:
-                                logger.debug(rtm_flow)
+                                if "subtype" in rtm_flow[0]:
+                                    subtype = rtm_flow[0]['subtype']
+                                    if subtype == "message_deleted":
+                                        logger.debug("something deleted")
+                                else:
+                                    logger.debug(rtm_flow)
+                                    self.tg_bot.sendMessage(chat_id=sl2tg['#{}'.format(channel_name)], text='{user_name} ({channel}): {text}'.format(user_name=user_name, channel=channel_name, text=text))
                         else:
                             logger.debug(rtm_flow)
                     now = int(time.time())
