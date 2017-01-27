@@ -76,8 +76,7 @@ class Core:
                                         channel_info = self.sc.api_call("channels.info", channel=rtm_flow[0]['channel'])
                                         channel_name = channel_info['channel']['name']
                                         user_name = user_profile['user']['profile']['real_name']
-                                        response = self.tg_bot.sendMessage(chat_id=sl2tg['#{}'.format(channel_name)], text='{user_name} ({channel}): {text}'.format(user_name=user_name, channel=channel_name, text=text))
-                                        print('TG RESPONSE: {}'.format(response))
+                                        response = self.tg_bot.sendMessage(parse_mode='HTML', chat_id=sl2tg['#{}'.format(channel_name)], text='<b>{user_name} ({channel}):</b> {text}'.format(user_name=user_name, channel=channel_name, text=text))
                             else:
                                 logger.debug(rtm_flow)
                     now = int(time.time())
@@ -98,12 +97,11 @@ class Core:
             update.message.reply_text('Failed to get memory. Please contact Admin!')
         try:
             if str(update.message.chat_id) in tg2sl:
-                print("USER: {}".format(bot.getFile(file_id=update.message.from_user.get_profile_photos(limit=1)['photos'][0][0]['file_id'])['file_path']))
                 response = self.sc.api_call(
                   "chat.postMessage",
                   channel=tg2sl[str(update.message.chat_id)],
                   text=update.message.text,
-                  username="{firstname} {lastname}".format(firstname=update.message.from_user['first_name'], lastname=update.message.from_user['last_name']),
+                  username="{firstname} {lastname} ({synced_chat})".format(firstname=update.message.from_user['first_name'], lastname=update.message.from_user['last_name'], synced_chat=update.message['chat']['title']),
                   icon_url=str(bot.getFile(file_id=update.message.from_user.get_profile_photos(limit=1)['photos'][0][0]['file_id'])['file_path'])
                 )
                 print("response: {}".format(response))
@@ -126,7 +124,6 @@ class Core:
             update.message.reply_text(tg2sl)
 
         if update.message.chat_id in tg2sl:
-            print("in it")
             update.message.reply_text('This channel is already synced!')
         else:
             logger.debug("got sync request...")
