@@ -137,9 +137,9 @@ def configure_logging(args):
         logger.setLevel(logging.DEBUG)
 
 if __name__ == "__main__":
-    default_log_path = os.path.join('config', 'irde_bot.log')
+    default_log_path = os.path.join('config', 'TG-SL_bot.log')
 
-    parser = argparse.ArgumentParser(prog='irde_bot',
+    parser = argparse.ArgumentParser(prog='TG-SL_bot',
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--log', default=default_log_path,
                             help='log file path')
