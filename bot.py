@@ -2,13 +2,15 @@
 import telegram.ext
 from telegram.ext import Updater, Filters
 from slackclient import SlackClient
-import json, os.path, sys, traceback, functools, time, shutil, logging, logging.config, argparse, signal
+import os.path, sys, traceback, shutil, logging, logging.config, argparse
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
 
 #Import internal Modules that are needed
-import config
+from bot import config
+from bot import Htelegram
+from bot import Hslack
 
 class Core:
     def __init__(self):
@@ -43,110 +45,17 @@ class Core:
 
     def run(self):
         pool = Pool(2)
+        telegram_class = Htelegram.Telegram(self.sc, self.updater, self.memory)
+        slack_class = Hslack.Slack(self.sc, self.tg_bot, self.memory)
         try:
-            telegram = pool.apply_async(self.telegram_init(), [])
-            slack = pool.apply_async(self.slack_init(), [])
+            Ttelegram = pool.apply_async(telegram_class.telegram_init(), [])
+            Tslack = pool.apply_async(slack_class.slack_init(), [])
             pool.close()
-            telegram.join()
-            slack.join()
+            Ttelegram.join()
+            Tslack.join()
         except KeyboardInterrupt:
             logger.info("Caught KeyboardInterrupt, terminating workers")
             pool.terminate()
-
-    def slack_init(self):
-        try:
-            sl2tg = self.memory.get_by_path(['tg_sl-sync'])['sl2tg']
-            logger.info("Slack Bot starting...")
-            if self.sc.rtm_connect():
-                last_ping = int(time.time())
-                while True:
-                    rtm_flow = self.sc.rtm_read()
-                    if rtm_flow:
-                        print(rtm_flow)
-                        type = rtm_flow[0]['type']
-                        if 'text' in rtm_flow[0]:
-                            if type == "message":
-                                    if "subtype" in rtm_flow[0]:
-                                        subtype = rtm_flow[0]['subtype']
-                                        if "message_deleted" in subtype:
-                                            logger.debug("something got deleted at slack")
-                                    else:
-                                        text = rtm_flow[0]['text']
-                                        user_profile = self.sc.api_call("users.info", user=rtm_flow[0]['user'])
-                                        channel_info = self.sc.api_call("channels.info", channel=rtm_flow[0]['channel'])
-                                        channel_name = channel_info['channel']['name']
-                                        user_name = user_profile['user']['profile']['real_name']
-                                        response = self.tg_bot.sendMessage(parse_mode='HTML', chat_id=sl2tg['#{}'.format(channel_name)], text='<b>{user_name} ({channel}):</b> {text}'.format(user_name=user_name, channel=channel_name, text=text))
-                            else:
-                                logger.debug(rtm_flow)
-                    now = int(time.time())
-                    if now > last_ping + 30:
-                        self.sc.server.ping()
-                        last_ping = now
-                    time.sleep(.1)
-            else:
-                logger.critical("Connection Failed, invalid token?")
-        except KeyboardInterrupt:
-            sys.exit()
-
-    def Hsyc(self, bot, update):
-        try:
-            tg2sl = self.memory.get_by_path(['tg_sl-sync'])['tg2sl']
-        except Exception as e:
-            traceback.print_exc()
-            update.message.reply_text('Failed to get memory. Please contact Admin!')
-        try:
-            if str(update.message.chat_id) in tg2sl:
-                response = self.sc.api_call(
-                  "chat.postMessage",
-                  channel=tg2sl[str(update.message.chat_id)],
-                  text=update.message.text,
-                  username="{firstname} {lastname} ({synced_chat})".format(firstname=update.message.from_user['first_name'], lastname=update.message.from_user['last_name'], synced_chat=update.message['chat']['title']),
-                  icon_url=str(bot.getFile(file_id=update.message.from_user.get_profile_photos(limit=1)['photos'][0][0]['file_id'])['file_path'])
-                )
-                print("response: {}".format(response))
-        except Exception as e:
-            traceback.print_exc()
-            update.message.reply_text('Failed to sync to chat. Please contact Admin!')
-        print(update.message.text)
-
-    def Cslacksync(self, bot, update):
-        params = update.message.text.split()
-        logger.debug(params[1])
-
-        try:
-            tg2sl = self.memory.get_by_path(['tg_sl-sync'])['tg2sl']
-            sl2tg = self.memory.get_by_path(['tg_sl-sync'])['sl2tg']
-        except Exception as e:
-            traceback.print_exc()
-            update.message.reply_text('Failed to get memory. Please contact Admin!')
-
-            update.message.reply_text(tg2sl)
-
-        if update.message.chat_id in tg2sl:
-            update.message.reply_text('This channel is already synced!')
-        else:
-            logger.debug("got sync request...")
-            try:
-                tg2sl[str(update.message.chat_id)] = params[1]
-                sl2tg[str(params[1])] = str(update.message.chat_id)
-                new_memory = {'tg2sl': tg2sl, 'sl2tg': sl2tg}
-                self.memory.set_by_path(['tg_sl-sync'], new_memory)
-                self.memory.save()
-                update.message.reply_text('Saved sync!')
-                logger.debug("sync saved")
-            except Exception as e:
-                traceback.print_exc()
-                update.message.reply_text('Failed to save sync!')
-
-    def telegram_init(self):
-        try:
-            logger.info("Telegram starting...")
-            self.updater.dispatcher.add_handler(telegram.ext.MessageHandler(Filters.text, self.Hsyc))
-            self.updater.dispatcher.add_handler(telegram.ext.CommandHandler('slacksync', self.Cslacksync))
-            self.updater.start_polling()
-        except KeyboardInterrupt:
-            sys.exit()
 
 def configure_logging(args):
     """Configure Logging
