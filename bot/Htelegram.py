@@ -4,11 +4,13 @@ from telegram.ext import Updater, Filters
 
 logger = logging.getLogger(__name__)
 
+from bot.helper import sc, updater, memory_class
+
 class Telegram:
-    def __init__(self, sc, updater, memory):
+    def __init__(self):
         self.sc = sc
         self.updater = updater
-        self.memory = memory
+        self.memory = memory_class
 
     def Hsyc(self, bot, update):
         try:

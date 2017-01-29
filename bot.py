@@ -1,52 +1,19 @@
 #Import external Modules that are needed
-import telegram.ext
-from telegram.ext import Updater, Filters
-from slackclient import SlackClient
 import os.path, sys, traceback, shutil, logging, logging.config, argparse
 from multiprocessing import Pool
 
 logger = logging.getLogger(__name__)
 
 #Import internal Modules that are needed
-from bot import config
 from bot import Htelegram
 from bot import Hslack
+from bot.helper import config_class
 
 class Core:
-    def __init__(self):
-        try:
-            self.config = config.Config(os.path.join('config', 'config.json'))
-        except ValueError:
-            logging.exception("failed to load config, malformed json")
-            sys.exit()
-
-        try:
-            self.memory = config.Memory(os.path.join('config', 'memory.json'))
-        except ValueError:
-            logging.exception("failed to load config, malformed json")
-            sys.exit()
-
-        try:
-            self.sl_api_key = self.config.get_by_path(['SLACK_API_KEY'])
-            self.sc = SlackClient(self.sl_api_key)
-        except Exception as e:
-            traceback.print_exc()
-
-        try:
-            self.tg_api_key = self.config.get_by_path(['TELEGRAM_API_KEY'])
-            if not self.memory.exists(['tg_sl-sync']):
-                logger.warn('tg_sl-sync missing...')
-                self.memory.set_by_path(['tg_sl-sync'], {'sl2tg':{}, 'tg2sl': {}})
-                self.memory.save()
-            self.tg_bot = telegram.Bot(self.tg_api_key)
-            self.updater = Updater(self.tg_api_key)
-        except Exception as e:
-            traceback.print_exc()
-
     def run(self):
         pool = Pool(2)
-        telegram_class = Htelegram.Telegram(self.sc, self.updater, self.memory)
-        slack_class = Hslack.Slack(self.sc, self.tg_bot, self.memory)
+        telegram_class = Htelegram.Telegram()
+        slack_class = Hslack.Slack()
         try:
             Ttelegram = pool.apply_async(telegram_class.telegram_init(), [])
             Tslack = pool.apply_async(slack_class.slack_init(), [])
@@ -113,9 +80,8 @@ def configure_logging(args):
     # logging before bringing anything else up. There is no race internally,
     # if logging() is called before configured, it outputs to stderr, and
     # we will configure it soon enough
-    bootcfg = config.Config(os.path.join('config', 'config.json'))
-    if bootcfg.exists(["logging.system"]):
-        logging_config = bootcfg["logging.system"]
+    if config_class.exists(["logging.system"]):
+        logging_config = config_class["logging.system"]
 
     if "extras.setattr" in logging_config:
         for class_attr, value in logging_config["extras.setattr"].items():

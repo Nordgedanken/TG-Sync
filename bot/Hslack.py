@@ -2,11 +2,13 @@ import logging, time
 
 logger = logging.getLogger(__name__)
 
+from bot.helper import sc, tg_bot, memory_class
+
 class Slack:
-    def __init__(self, sc, tg_bot, memory):
+    def __init__(self):
         self.sc = sc
         self.tg_bot = tg_bot
-        self.memory = memory
+        self.memory = memory_class
 
     def slack_init(self):
         try:
