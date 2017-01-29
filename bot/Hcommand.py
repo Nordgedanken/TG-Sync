@@ -1,18 +1,13 @@
 from functools import wraps
+import traceback
 
-class Command:
-    def __init__():
-        print("WIP")
+from bot.helper import sc, updater
+import telegram.ext
+from telegram.ext import Filters
 
-    def register(count):
-        def true_register(f):
-            @wraps(f)
-            def wrapped(*args, **kwargs):
-                for i in range(count):
-                    print "Before decorated function"
-                r = f(*args, **kwargs)
-                for i in range(count):
-                    print "After decorated function"
-                return r
-            return wrapped
-        return true_register
+def register_command(filter):
+    def wrap(f):
+        print("Inside wrap()")
+        #r = f()
+        updater.dispatcher.add_handler(telegram.ext.CommandHandler(filter, f))
+    return wrap

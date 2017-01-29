@@ -1,10 +1,12 @@
 import logging
 import telegram.ext
-from telegram.ext import Updater, Filters
+from telegram.ext import Filters
 
 logger = logging.getLogger(__name__)
 
 from bot.helper import sc, updater, memory_class
+from bot.Hcommand import register_command
+
 
 class Telegram:
     def __init__(self):
@@ -33,7 +35,9 @@ class Telegram:
             update.message.reply_text('Failed to sync to chat. Please contact Admin!')
         print(update.message.text)
 
+    # @register_command('slacksync')
     def Cslacksync(self, bot, update):
+        print('got it')
         params = update.message.text.split()
         logger.debug(params[1])
 
