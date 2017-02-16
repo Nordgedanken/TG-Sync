@@ -12,11 +12,9 @@ from bot.helper import config_class
 class Core:
     def run(self):
         pool = Pool(2)
-        telegram_class = Htelegram.Telegram()
-        slack_class = Hslack.Slack()
         try:
-            Ttelegram = pool.apply_async(telegram_class.telegram_init(), [])
-            Tslack = pool.apply_async(slack_class.slack_init(), [])
+            Ttelegram = pool.apply_async(Htelegram.Telegram().telegram_init(), [])
+            Tslack = pool.apply_async(Hslack.Slack().slack_init(), [])
             pool.close()
             Ttelegram.join()
             Tslack.join()

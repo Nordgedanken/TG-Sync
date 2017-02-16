@@ -7,7 +7,6 @@ from telegram.ext import Filters
 
 def register_command(filter):
     def wrap(f):
-        print("Inside wrap()")
         #r = f()
         updater.dispatcher.add_handler(telegram.ext.CommandHandler(filter, f))
     return wrap
