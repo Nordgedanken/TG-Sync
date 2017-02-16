@@ -124,7 +124,7 @@ if __name__ == "__main__":
             except (OSError, IOError) as e:
                 sys.exit('Failed to copy default memory file: {}'.format(e))
     else:
-        os.mkdir("config")
+        os.makedirs("config")
         if not os.path.isfile(os.path.join('config', 'config.json')):
             try:
                 shutil.copy(os.path.join('defaults', 'config.json'), os.path.join('config', 'config.json'))

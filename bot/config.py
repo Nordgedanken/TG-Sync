@@ -94,7 +94,7 @@ class Config(collections.MutableMapping):
             if self.failsafe_backups:
                 self._make_failsafe_backup()
 
-            with open(self.filename, 'w') as f:
+            with open(self.filename, 'w+') as f:
                 json.dump(self.config, f, indent=2, sort_keys=True)
                 self.changed = False
             interval = time.time() - start_time
@@ -256,7 +256,7 @@ class Memory(collections.MutableMapping):
             if self.failsafe_backups:
                 self._make_failsafe_backup()
 
-            with open(self.filename, 'w') as f:
+            with open(self.filename, 'w+') as f:
                 json.dump(self.config, f, indent=2, sort_keys=True)
                 self.changed = False
             interval = time.time() - start_time
