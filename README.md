@@ -5,6 +5,15 @@ Currently it is still Work in Progress
 
 # How to Install
 
+## Docker
+
+```
+git clone <repository url>
+cd <repository name>
+docker build -t tg_sync/tg_sync .
+docker run -it -d -v $(pwd):/app tg_sync/tg_sync
+```
+
 ## Preparing your Environment
 
 **install python 3.4 from source**
