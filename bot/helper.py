@@ -25,13 +25,14 @@ try:
 except Exception as e:
     traceback.print_exc()
 
-try:
-    tg_api_key = config_class.get_by_path(['TELEGRAM_API_KEY'])
-    if not memory_class.exists(['tg_sl-sync']):
-        logger.warn('tg_sl-sync missing...')
-        memory_class.set_by_path(['tg_sl-sync'], {'sl2tg':{}, 'tg2sl': {}})
-        memory_class.save()
-    tg_bot = telegram.Bot(tg_api_key)
-    updater = Updater(tg_api_key)
-except Exception as e:
-    traceback.print_exc()
+if os.path.isfile(os.path.join('config', 'memory.json')):
+    try:
+        tg_api_key = config_class.get_by_path(['TELEGRAM_API_KEY'])
+        if not memory_class.exists(['tg_sl-sync']):
+            logger.warn('tg_sl-sync missing...')
+            memory_class.set_by_path(['tg_sl-sync'], {'sl2tg':{}, 'tg2sl': {}})
+            memory_class.save()
+        tg_bot = telegram.Bot(tg_api_key)
+        updater = Updater(tg_api_key)
+    except Exception as e:
+        traceback.print_exc()

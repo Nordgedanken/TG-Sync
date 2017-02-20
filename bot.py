@@ -6,40 +6,6 @@ logger = logging.getLogger(__name__)
 
 from bot.helper import config_class
 
-if __name__ == "__main__":
-    default_log_path = os.path.join('config', 'TG-SL_bot.log')
-
-    parser = argparse.ArgumentParser(prog='TG-SL_bot',
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--log', default=default_log_path,
-                            help='log file path')
-    parser.add_argument('-d', '--debug', action='store_true',
-                    help='log detailed debugging messages')
-    args = parser.parse_args()
-
-    if os.path.isdir("config"):
-        if not (config_class.get_by_path(['SLACK_API_KEY'])) or (config_class.get_by_path(['TELEGRAM_API_KEY'])):
-            sys.exit('Please set Api Keys')
-        #Import internal Modules that are needed
-        from bot import Htelegram
-        from bot import Hslack
-    else:
-        os.makedirs("config")
-        if not os.path.isfile(os.path.join('config', 'config.json')):
-            try:
-                shutil.copy(os.path.join('defaults', 'config.json'), os.path.join('config', 'config.json'))
-            except (OSError, IOError) as e:
-                sys.exit('Failed to copy default config file: {}'.format(e))
-        if not os.path.isfile(os.path.join('config', 'memory.json')):
-            try:
-                shutil.copy(os.path.join('defaults', 'memory.json'), os.path.join('config', 'memory.json'))
-            except (OSError, IOError) as e:
-                sys.exit('Failed to copy default memory file: {}'.format(e))
-
-    configure_logging(args)
-    core = Core()
-    core.run()
-
 class Core:
     def run(self):
         pool = Pool(2)
@@ -130,3 +96,38 @@ def configure_logging(args):
     logger = logging.getLogger()
     if args.debug:
         logger.setLevel(logging.DEBUG)
+
+if __name__ == "__main__":
+    default_log_path = os.path.join('config', 'TG-SL_bot.log')
+
+    parser = argparse.ArgumentParser(prog='TG-SL_bot',
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--log', default=default_log_path,
+                            help='log file path')
+    parser.add_argument('-d', '--debug', action='store_true',
+                    help='log detailed debugging messages')
+    args = parser.parse_args()
+
+    if os.path.isdir("config"):
+        if not (config_class.get_by_path(['SLACK_API_KEY'])) or (config_class.get_by_path(['TELEGRAM_API_KEY'])):
+            sys.exit('Please set Api Keys')
+        #Import internal Modules that are needed
+        from bot import Htelegram
+        from bot import Hslack
+        core = Core()
+        core.run()
+    else:
+        os.makedirs("config")
+        if not os.path.isfile(os.path.join('config', 'config.json')):
+            try:
+                shutil.copy(os.path.join('defaults', 'config.json'), os.path.join('config', 'config.json'))
+            except (OSError, IOError) as e:
+                sys.exit('Failed to copy default config file: {}'.format(e))
+        if not os.path.isfile(os.path.join('config', 'memory.json')):
+            try:
+                shutil.copy(os.path.join('defaults', 'memory.json'), os.path.join('config', 'memory.json'))
+            except (OSError, IOError) as e:
+                sys.exit('Failed to copy default memory file: {}'.format(e))
+        sys.exit('Please set Api Keys')
+
+    configure_logging(args)
