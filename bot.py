@@ -109,7 +109,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if os.path.isdir("config"):
-        if not (config_class.get_by_path(['SLACK_API_KEY'])) or (config_class.get_by_path(['TELEGRAM_API_KEY'])):
+        if not (config_class.get_by_path(['SLACK_API_KEY'])) or not (config_class.get_by_path(['TELEGRAM_API_KEY'])):
             sys.exit('Please set Api Keys')
         #Import internal Modules that are needed
         from bot import Htelegram
